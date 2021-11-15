@@ -1,6 +1,7 @@
 """Simplify, correct, and consolidate network topology."""
 
 import logging as lg
+import os
 
 import geopandas as gpd
 import networkx as nx
@@ -12,7 +13,6 @@ from shapely.geometry import Polygon
 from . import stats
 from . import utils
 from . import utils_graph
-
 
 def _is_endpoint(G, node, strict=True):
     """
@@ -41,12 +41,21 @@ def _is_endpoint(G, node, strict=True):
     -------
     bool
     """
+	# Modification of OSMNX Library
+	print(f"ENDPOINT CWD: {os.getcwd()}")
+	with open (nodes_to_keep_fp, 'rb') as fp:
+		public_transport_nodes_to_keep = pickle.load(fp)
+
     neighbors = set(list(G.predecessors(node)) + list(G.successors(node)))
     n = len(neighbors)
     d = G.degree(node)
 
+	# rule public transport
+	if node in public_transport_nodes_to_keep:
+		return False
+
     # rule 1
-    if node in neighbors:
+    elif node in neighbors:
         # if the node appears in its list of neighbors, it self-loops
         # this is always an endpoint.
         return True
