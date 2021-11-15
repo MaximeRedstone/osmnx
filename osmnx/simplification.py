@@ -2,6 +2,7 @@
 
 import logging as lg
 import os
+import pickle
 
 import geopandas as gpd
 import networkx as nx
@@ -13,6 +14,7 @@ from shapely.geometry import Polygon
 from . import stats
 from . import utils
 from . import utils_graph
+
 
 def _is_endpoint(G, node, strict=True):
     """
@@ -41,18 +43,21 @@ def _is_endpoint(G, node, strict=True):
     -------
     bool
     """
-	# Modification of OSMNX Library
-	print(f"ENDPOINT CWD: {os.getcwd()}")
-	with open (nodes_to_keep_fp, 'rb') as fp:
-		public_transport_nodes_to_keep = pickle.load(fp)
+
+    # # Modification of OSMNX Library
+    print("ENDPOINT CWD: {os.getcwd()}")
+    nodes_to_keep_fp = ""
+    with open(nodes_to_keep_fp, "rb") as fp:
+        public_transport_nodes_to_keep = pickle.load(fp)
 
     neighbors = set(list(G.predecessors(node)) + list(G.successors(node)))
     n = len(neighbors)
     d = G.degree(node)
 
-	# rule public transport
-	if node in public_transport_nodes_to_keep:
-		return False
+    # public_transport_nodes_to_keep = []
+    # # rule public transport
+    if node in public_transport_nodes_to_keep:
+        return False
 
     # rule 1
     elif node in neighbors:
@@ -151,14 +156,17 @@ def _build_path(G, endpoint, endpoint_successor, endpoints):
                         # a one-way street turns into a two-way here, but
                         # duplicate incoming one-way edges are present
                         utils.log(
-                            f"Unexpected simplify pattern handled near {successor}", level=lg.WARN
+                            f"Unexpected simplify pattern handled near {successor}",
+                            level=lg.WARN,
                         )
                         return path
                 else:  # pragma: no cover
                     # if successor has >1 successors, then successor must have
                     # been an endpoint because you can go in 2 new directions.
                     # this should never occur in practice
-                    raise Exception(f"Unexpected simplify pattern failed near {successor}")
+                    raise Exception(
+                        f"Unexpected simplify pattern failed near {successor}"
+                    )
 
             # if this successor is an endpoint, we've completed the path
             return path
@@ -232,7 +240,9 @@ def simplify_graph(G, strict=True, remove_rings=True):
         each simplified edge
     """
     if "simplified" in G.graph and G.graph["simplified"]:  # pragma: no cover
-        raise Exception("This graph has already been simplified, cannot simplify it again.")
+        raise Exception(
+            "This graph has already been simplified, cannot simplify it again."
+        )
 
     utils.log("Begin topologically simplifying the graph...")
 
@@ -259,7 +269,9 @@ def simplify_graph(G, strict=True, remove_rings=True):
             # street... we will keep only one of the edges (see below)
             edge_count = G.number_of_edges(u, v)
             if edge_count != 1:
-                utils.log(f"Found {edge_count} edges between {u} and {v} when simplifying")
+                utils.log(
+                    f"Found {edge_count} edges between {u} and {v} when simplifying"
+                )
 
             # get edge between these nodes: if multiple edges exist between
             # them (see above), we retain only one in the simplified graph
@@ -401,7 +413,9 @@ def consolidate_intersections(
             # cannot rebuild a graph with no nodes or no edges, just return it
             return G
         else:
-            return _consolidate_intersections_rebuild_graph(G, tolerance, reconnect_edges)
+            return _consolidate_intersections_rebuild_graph(
+                G, tolerance, reconnect_edges
+            )
 
     else:
         if not G:
@@ -430,7 +444,11 @@ def _merge_nodes_geometric(G, tolerance):
         the merged overlapping polygons of the buffered nodes
     """
     # buffer nodes GeoSeries then get unary union to merge overlaps
-    merged = utils_graph.graph_to_gdfs(G, edges=False)["geometry"].buffer(tolerance).unary_union
+    merged = (
+        utils_graph.graph_to_gdfs(G, edges=False)["geometry"]
+        .buffer(tolerance)
+        .unary_union
+    )
 
     # if only a single node results, make it iterable to convert to GeoSeries
     merged = MultiPolygon([merged]) if isinstance(merged, Polygon) else merged
