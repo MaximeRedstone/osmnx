@@ -2,7 +2,7 @@
 
 import logging as lg
 import os
-import pickle
+import pickle5 as pickle
 
 import geopandas as gpd
 import networkx as nx
@@ -16,7 +16,7 @@ from . import utils
 from . import utils_graph
 
 
-def _is_endpoint(G, node, strict=True):
+def _is_endpoint(G, node, strict=True, nodes_to_keep=None):
     """
     Is node a true endpoint of an edge.
 
@@ -44,20 +44,16 @@ def _is_endpoint(G, node, strict=True):
     bool
     """
 
-    # # Modification of OSMNX Library
-    print("ENDPOINT CWD: {os.getcwd()}")
-    nodes_to_keep_fp = ""
-    with open(nodes_to_keep_fp, "rb") as fp:
-        public_transport_nodes_to_keep = pickle.load(fp)
-
     neighbors = set(list(G.predecessors(node)) + list(G.successors(node)))
     n = len(neighbors)
     d = G.degree(node)
 
-    # public_transport_nodes_to_keep = []
-    # # rule public transport
-    if node in public_transport_nodes_to_keep:
-        return False
+    ## Modification of OSMNX Library ##
+    # rule keep bespoke list of nodes in graph
+    # (e.g. list of all public transport stations for multimodal transport itineraries)
+    # if nodes_to_keep is not None:
+    if nodes_to_keep is not None and node in nodes_to_keep.keys():
+        return True
 
     # rule 1
     elif node in neighbors:
@@ -176,7 +172,7 @@ def _build_path(G, endpoint, endpoint_successor, endpoints):
     return path
 
 
-def _get_paths_to_simplify(G, strict=True):
+def _get_paths_to_simplify(G, strict=True, nodes_to_keep=None):
     """
     Generate all the paths to be simplified between endpoint nodes.
 
@@ -196,7 +192,13 @@ def _get_paths_to_simplify(G, strict=True):
     path_to_simplify : list
     """
     # first identify all the nodes that are endpoints
-    endpoints = set([n for n in G.nodes if _is_endpoint(G, n, strict=strict)])
+    endpoints = set(
+        [
+            n
+            for n in G.nodes
+            if _is_endpoint(G, n, strict=strict, nodes_to_keep=nodes_to_keep)
+        ]
+    )
     utils.log(f"Identified {len(endpoints)} edge endpoints")
 
     # for each endpoint node, look at each of its successor nodes
@@ -209,7 +211,7 @@ def _get_paths_to_simplify(G, strict=True):
                 yield _build_path(G, endpoint, successor, endpoints)
 
 
-def simplify_graph(G, strict=True, remove_rings=True):
+def simplify_graph(G, strict=True, remove_rings=True, nodes_to_keep=None):
     """
     Simplify a graph's topology by removing interstitial nodes.
 
@@ -257,7 +259,7 @@ def simplify_graph(G, strict=True, remove_rings=True):
     all_edges_to_add = []
 
     # generate each path that needs to be simplified
-    for path in _get_paths_to_simplify(G, strict=strict):
+    for path in _get_paths_to_simplify(G, strict=strict, nodes_to_keep=nodes_to_keep):
 
         # add the interstitial edges we're removing to a list so we can retain
         # their spatial geometry
@@ -324,7 +326,7 @@ def simplify_graph(G, strict=True, remove_rings=True):
         wccs = nx.weakly_connected_components(G)
         nodes_in_rings = set()
         for wcc in wccs:
-            if not any(_is_endpoint(G, n) for n in wcc):
+            if not any(_is_endpoint(G, n, nodes_to_keep=nodes_to_keep) for n in wcc):
                 nodes_in_rings.update(wcc)
         G.remove_nodes_from(nodes_in_rings)
 
