@@ -30,19 +30,31 @@ class _OSMContentHandler(xml.sax.handler.ContentHandler):
 
     def startElement(self, name, attrs):
         if name == "osm":
-            self.object.update({k: v for k, v in attrs.items() if k in {"version", "generator"}})
+            self.object.update(
+                {k: v for k, v in attrs.items() if k in {"version", "generator"}}
+            )
 
         elif name in {"node", "way"}:
             self._element = dict(type=name, tags={}, nodes=[], **attrs)
-            self._element.update({k: float(v) for k, v in attrs.items() if k in {"lat", "lon"}})
             self._element.update(
-                {k: int(v) for k, v in attrs.items() if k in {"id", "uid", "version", "changeset"}}
+                {k: float(v) for k, v in attrs.items() if k in {"lat", "lon"}}
+            )
+            self._element.update(
+                {
+                    k: int(v)
+                    for k, v in attrs.items()
+                    if k in {"id", "uid", "version", "changeset"}
+                }
             )
 
         elif name == "relation":
             self._element = dict(type=name, tags={}, members=[], **attrs)
             self._element.update(
-                {k: int(v) for k, v in attrs.items() if k in {"id", "uid", "version", "changeset"}}
+                {
+                    k: int(v)
+                    for k, v in attrs.items()
+                    if k in {"id", "uid", "version", "changeset"}
+                }
             )
 
         elif name == "tag":
@@ -196,7 +208,9 @@ def save_graph_xml(
     if "uniqueid" in gdf_edges.columns:
         gdf_edges = gdf_edges.rename(columns={"uniqueid": "id"})
     else:
-        gdf_edges = gdf_edges.reset_index().reset_index().rename(columns={"index": "id"})
+        gdf_edges = (
+            gdf_edges.reset_index().reset_index().rename(columns={"index": "id"})
+        )
 
     # add default values for required attributes
     for table in (gdf_nodes, gdf_edges):
@@ -256,10 +270,14 @@ def _append_nodes_xml_tree(root, gdf_nodes, node_attrs, node_tags):
         for tag in node_tags:
             if tag in gdf_nodes.columns:
                 etree.SubElement(node, "tag", attrib={"k": tag, "v": row[tag]})
+            ## MODIFICATION
+            tag.tail = "\n"
     return root
 
 
-def _append_edges_xml_tree(root, gdf_edges, edge_attrs, edge_tags, edge_tag_aggs, merge_edges):
+def _append_edges_xml_tree(
+    root, gdf_edges, edge_attrs, edge_tags, edge_tag_aggs, merge_edges
+):
     """
     Append edges to an XML tree.
 
@@ -298,7 +316,9 @@ def _append_edges_xml_tree(root, gdf_edges, edge_attrs, edge_tags, edge_tag_aggs
 
         for _, all_way_edges in gdf_edges.groupby("id"):
             first = all_way_edges.iloc[0]
-            edge = etree.SubElement(root, "way", attrib=first[edge_attrs].dropna().to_dict())
+            edge = etree.SubElement(
+                root, "way", attrib=first[edge_attrs].dropna().to_dict()
+            )
 
             if len(all_way_edges) == 1:
                 etree.SubElement(edge, "nd", attrib={"ref": first["u"]})
@@ -312,18 +332,24 @@ def _append_edges_xml_tree(root, gdf_edges, edge_attrs, edge_tags, edge_tag_aggs
             if edge_tag_aggs is None:
                 for tag in edge_tags:
                     if tag in all_way_edges.columns:
-                        etree.SubElement(edge, "tag", attrib={"k": tag, "v": first[tag]})
+                        etree.SubElement(
+                            edge, "tag", attrib={"k": tag, "v": first[tag]}
+                        )
             else:
                 for tag in edge_tags:
                     if (tag in all_way_edges.columns) and (
                         tag not in (t for t, agg in edge_tag_aggs)
                     ):
-                        etree.SubElement(edge, "tag", attrib={"k": tag, "v": first[tag]})
+                        etree.SubElement(
+                            edge, "tag", attrib={"k": tag, "v": first[tag]}
+                        )
 
                 for tag, agg in edge_tag_aggs:
                     if tag in all_way_edges.columns:
                         etree.SubElement(
-                            edge, "tag", attrib={"k": tag, "v": all_way_edges[tag].aggregate(agg)}
+                            edge,
+                            "tag",
+                            attrib={"k": tag, "v": all_way_edges[tag].aggregate(agg)},
                         )
     else:
         # NOTE: this will generate separate OSM ways for each network edge,
@@ -333,7 +359,9 @@ def _append_edges_xml_tree(root, gdf_edges, edge_attrs, edge_tags, edge_tag_aggs
         # OSM XML schema standard, however, the data will still comprise a
         # valid network and will be readable by *most* OSM tools.
         for _, row in gdf_edges.iterrows():
-            edge = etree.SubElement(root, "way", attrib=row[edge_attrs].dropna().to_dict())
+            edge = etree.SubElement(
+                root, "way", attrib=row[edge_attrs].dropna().to_dict()
+            )
             etree.SubElement(edge, "nd", attrib={"ref": row["u"]})
             etree.SubElement(edge, "nd", attrib={"ref": row["v"]})
             for tag in edge_tags:
@@ -381,6 +409,8 @@ def _get_unique_nodes_ordered_from_way(df_way_edges):
     num_unique_nodes = len(np.unique(all_nodes))
 
     if len(unique_ordered_nodes) < num_unique_nodes:
-        utils.log(f"Recovered order for {len(unique_ordered_nodes)} of {num_unique_nodes} nodes")
+        utils.log(
+            f"Recovered order for {len(unique_ordered_nodes)} of {num_unique_nodes} nodes"
+        )
 
     return unique_ordered_nodes

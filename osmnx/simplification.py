@@ -52,7 +52,7 @@ def _is_endpoint(G, node, strict=True, nodes_to_keep=None):
     # rule keep bespoke list of nodes in graph
     # (e.g. list of all public transport stations for multimodal transport itineraries)
     # if nodes_to_keep is not None:
-    if nodes_to_keep is not None and node in nodes_to_keep.keys():
+    if nodes_to_keep is not None and node in nodes_to_keep:
         return True
 
     # rule 1

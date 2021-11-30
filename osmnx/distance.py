@@ -132,7 +132,9 @@ def add_edge_lengths(G, precision=3):
         # two-dimensional array of coordinates: y0, x0, y1, x1
         c = np.array([(y[u], x[u], y[v], x[v]) for u, v, k in uvk])
     except KeyError:  # pragma: no cover
-        raise KeyError("some edges missing nodes, possibly due to input data clipping issue")
+        raise KeyError(
+            "some edges missing nodes, possibly due to input data clipping issue"
+        )
 
     # calculate great circle distances, round, and fill nulls with zeros
     dists = great_circle_vec(c[:, 0], c[:, 1], c[:, 2], c[:, 3]).round(precision)
@@ -197,7 +199,9 @@ def nearest_nodes(G, X, Y, return_dist=False):
     else:
         # if unprojected, use ball tree for haversine nearest-neighbor search
         if BallTree is None:  # pragma: no cover
-            raise ImportError("scikit-learn must be installed to search an unprojected graph")
+            raise ImportError(
+                "scikit-learn must be installed to search an unprojected graph"
+            )
         # haversine requires lat, lng coords in radians
         nodes_rad = np.deg2rad(nodes[["y", "x"]])
         points_rad = np.deg2rad(np.array([Y, X]).T)
@@ -295,7 +299,9 @@ def nearest_edges(G, X, Y, interpolate=None, return_dist=False):
         # interpolate points along edges to index with k-d tree or ball tree
         uvk_xy = list()
         for uvk, geom in zip(geoms.index, geoms.values):
-            uvk_xy.extend((uvk, xy) for xy in utils_geo.interpolate_points(geom, interpolate))
+            uvk_xy.extend(
+                (uvk, xy) for xy in utils_geo.interpolate_points(geom, interpolate)
+            )
         labels, xy = zip(*uvk_xy)
         vertices = pd.DataFrame(xy, index=labels, columns=["x", "y"])
 
@@ -309,11 +315,15 @@ def nearest_edges(G, X, Y, interpolate=None, return_dist=False):
         else:
             # if unprojected, use ball tree for haversine nearest-neighbor search
             if BallTree is None:  # pragma: no cover
-                raise ImportError("scikit-learn must be installed to search an unprojected graph")
+                raise ImportError(
+                    "scikit-learn must be installed to search an unprojected graph"
+                )
             # haversine requires lat, lng coords in radians
             vertices_rad = np.deg2rad(vertices[["y", "x"]])
             points_rad = np.deg2rad(np.array([Y, X]).T)
-            dist, pos = BallTree(vertices_rad, metric="haversine").query(points_rad, k=1)
+            dist, pos = BallTree(vertices_rad, metric="haversine").query(
+                points_rad, k=1
+            )
             dist = dist[:, 0] * EARTH_RADIUS_M  # convert radians -> meters
             ne = vertices.index[pos[:, 0]]
 
@@ -551,7 +561,9 @@ def shortest_path(G, orig, dest, weight="length", cpus=1):
 
     else:
         # if only one of orig or dest is iterable and the other is not
-        raise ValueError("orig and dest must either both be iterable or neither must be iterable")
+        raise ValueError(
+            "orig and dest must either both be iterable or neither must be iterable"
+        )
 
 
 def k_shortest_paths(G, orig, dest, k, weight="length"):
@@ -580,6 +592,8 @@ def k_shortest_paths(G, orig, dest, k, weight="length"):
         a generator of `k` shortest paths ordered by total weight. each path
         is a list of node IDs.
     """
-    paths_gen = nx.shortest_simple_paths(utils_graph.get_digraph(G, weight), orig, dest, weight)
+    paths_gen = nx.shortest_simple_paths(
+        utils_graph.get_digraph(G, weight), orig, dest, weight
+    )
     for path in itertools.islice(paths_gen, 0, k):
         yield path

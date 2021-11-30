@@ -55,13 +55,23 @@ def _get_osm_filter(network_type):
         f'["service"!~"alley|driveway|emergency_access|parking|parking_aisle|private"]'
     )
 
-    # drive+service: allow ways tagged 'service' but filter out certain types
+    # OSMNX drive+service: allow ways tagged 'service' but filter out certain types
+    # filters["drive_service"] = (
+    #     f'["highway"]["area"!~"yes"]{settings.default_access}'
+    #     f'["highway"!~"abandoned|bridleway|bus_guideway|construction|corridor|cycleway|elevator|'
+    #     f'escalator|footway|path|pedestrian|planned|platform|proposed|raceway|steps|track"]'
+    #     f'["motor_vehicle"!~"no"]["motorcar"!~"no"]'
+    #     f'["service"!~"emergency_access|parking|parking_aisle|private"]'
+    # )
+
+    # CUSTOM drive+service: allow ways tagged 'service' but filter out certain types
     filters["drive_service"] = (
         f'["highway"]["area"!~"yes"]{settings.default_access}'
         f'["highway"!~"abandoned|bridleway|bus_guideway|construction|corridor|cycleway|elevator|'
-        f'escalator|footway|path|pedestrian|planned|platform|proposed|raceway|steps|track"]'
+        f'escalator|footway|pedestrian|planned|platform|proposed|raceway|steps|track"]'
         f'["motor_vehicle"!~"no"]["motorcar"!~"no"]'
         f'["service"!~"emergency_access|parking|parking_aisle|private"]'
+        f'["access"!~"private"]'
     )
 
     # walking: filter out cycle ways, motor ways, private ways, and anything
@@ -245,7 +255,11 @@ def _get_http_headers(user_agent=None, referer=None, accept_language=None):
 
     headers = requests.utils.default_headers()
     headers.update(
-        {"User-Agent": user_agent, "referer": referer, "Accept-Language": accept_language}
+        {
+            "User-Agent": user_agent,
+            "referer": referer,
+            "Accept-Language": accept_language,
+        }
     )
     return headers
 
@@ -279,7 +293,9 @@ def _get_host_by_name(host):
 
     # in case host could not be resolved return the host itself
     else:
-        utils.log(f"Google could not resolve '{host}'. Response status: {data['Status']}")
+        utils.log(
+            f"Google could not resolve '{host}'. Response status: {data['Status']}"
+        )
         return host
 
 
@@ -357,7 +373,9 @@ def _get_pause(base_endpoint, recursive_delay=5, default_duration=60):
 
     try:
         url = base_endpoint.rstrip("/") + "/status"
-        response = requests.get(url, headers=_get_http_headers(), **settings.requests_kwargs)
+        response = requests.get(
+            url, headers=_get_http_headers(), **settings.requests_kwargs
+        )
         sc = response.status_code
         status = response.text.split("\n")[3]
         status_first_token = status.split(" ")[0]
@@ -433,7 +451,9 @@ def _make_overpass_polygon_coord_strs(polygon):
     gpcs = utils_geo._consolidate_subdivide_geometry(geometry_proj)
     geometry, _ = projection.project_geometry(gpcs, crs=crs_proj, to_latlong=True)
     polygon_coord_strs = utils_geo._get_polygons_coordinates(geometry)
-    utils.log(f"Requesting data within polygon from API in {len(polygon_coord_strs)} request(s)")
+    utils.log(
+        f"Requesting data within polygon from API in {len(polygon_coord_strs)} request(s)"
+    )
     return polygon_coord_strs
 
 
@@ -544,7 +564,9 @@ def _osm_network_download(polygon, network_type, custom_filter):
     # pass each polygon exterior coordinates in the list to the API, one at a
     # time. The '>' makes it recurse so we get ways and the ways' nodes.
     for polygon_coord_str in polygon_coord_strs:
-        query_str = f"{overpass_settings};(way{osm_filter}(poly:'{polygon_coord_str}');>;);out;"
+        query_str = (
+            f"{overpass_settings};(way{osm_filter}(poly:'{polygon_coord_str}');>;);out;"
+        )
         response_json = overpass_request(data={"data": query_str})
         response_jsons.append(response_json)
     utils.log(
@@ -665,7 +687,9 @@ def nominatim_request(params, request_type="search", pause=1, error_pause=60):
     response_json : dict
     """
     if request_type not in {"search", "reverse", "lookup"}:  # pragma: no cover
-        raise ValueError('Nominatim request_type must be "search", "reverse", or "lookup"')
+        raise ValueError(
+            'Nominatim request_type must be "search", "reverse", or "lookup"'
+        )
 
     # resolve url to same IP even if there is server round-robin redirecting
     _config_dns(settings.nominatim_endpoint.rstrip("/"))
@@ -713,14 +737,21 @@ def nominatim_request(params, request_type="search", pause=1, error_pause=60):
                 # 429 is 'too many requests' and 504 is 'gateway timeout' from
                 # server overload: handle these by pausing then recursively
                 # re-trying until we get a valid response from the server
-                utils.log(f"{domain} returned {sc}: retry in {error_pause} secs", level=lg.WARNING)
+                utils.log(
+                    f"{domain} returned {sc}: retry in {error_pause} secs",
+                    level=lg.WARNING,
+                )
                 time.sleep(error_pause)
-                response_json = nominatim_request(params, request_type, pause, error_pause)
+                response_json = nominatim_request(
+                    params, request_type, pause, error_pause
+                )
 
             else:
                 # else, this was an unhandled status code, throw an exception
                 utils.log(f"{domain} returned {sc}", level=lg.ERROR)
-                raise Exception(f"Server returned:\n{response} {response.reason}\n{response.text}")
+                raise Exception(
+                    f"Server returned:\n{response} {response.reason}\n{response.text}"
+                )
 
         _save_to_cache(prepared_url, response_json, sc)
         return response_json
@@ -771,7 +802,11 @@ def overpass_request(data, pause=None, error_pause=60):
         utils.log(f"Post {prepared_url} with timeout={settings.timeout}")
         headers = _get_http_headers()
         response = requests.post(
-            url, data=data, timeout=settings.timeout, headers=headers, **settings.requests_kwargs
+            url,
+            data=data,
+            timeout=settings.timeout,
+            headers=headers,
+            **settings.requests_kwargs,
         )
         sc = response.status_code
 
@@ -783,7 +818,9 @@ def overpass_request(data, pause=None, error_pause=60):
         try:
             response_json = response.json()
             if "remark" in response_json:
-                utils.log(f'Server remark: "{response_json["remark"]}"', level=lg.WARNING)
+                utils.log(
+                    f'Server remark: "{response_json["remark"]}"', level=lg.WARNING
+                )
 
         except Exception:  # pragma: no cover
             if sc in {429, 504}:
@@ -791,14 +828,19 @@ def overpass_request(data, pause=None, error_pause=60):
                 # server overload: handle these by pausing then recursively
                 # re-trying until we get a valid response from the server
                 this_pause = error_pause + _get_pause(base_endpoint)
-                utils.log(f"{domain} returned {sc}: retry in {this_pause} secs", level=lg.WARNING)
+                utils.log(
+                    f"{domain} returned {sc}: retry in {this_pause} secs",
+                    level=lg.WARNING,
+                )
                 time.sleep(this_pause)
                 response_json = overpass_request(data, pause, error_pause)
 
             else:
                 # else, this was an unhandled status code, throw an exception
                 utils.log(f"{domain} returned {sc}", level=lg.ERROR)
-                raise Exception(f"Server returned\n{response} {response.reason}\n{response.text}")
+                raise Exception(
+                    f"Server returned\n{response} {response.reason}\n{response.text}"
+                )
 
         _save_to_cache(prepared_url, response_json, sc)
         return response_json
